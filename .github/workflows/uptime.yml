@@ -1,0 +1,48 @@
+name: License server uptime
+
+# Pings the Patronus license server every 5 minutes. A run fails only after 3
+# consecutive bad attempts (~40s), so a single network blip doesn't page you.
+# GitHub emails the account that last edited this schedule when a run fails.
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # health check
+    - cron: "17 6 * * 1"    # weekly keep-alive (see last step)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # keep-alive re-enables this workflow via the API
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      URL: https://patronus-license.fly.dev/health
+    steps:
+      - name: Check /health (TLS verified, expects {"status":"ok"})
+        run: |
+          for i in 1 2 3; do
+            out=$(curl -sS --max-time 15 -w '\n%{http_code} %{time_total}s' "$URL" 2>&1) || true
+            body=${out%$'\n'*}; meta=${out##*$'\n'}
+            if [ "${meta%% *}" = 200 ] && printf '%s' "$body" | grep -q '"status": *"ok"'; then
+              echo "OK on attempt $i ($meta)"; exit 0
+            fi
+            echo "attempt $i failed: $meta $body"
+            [ "$i" -lt 3 ] && sleep 20
+          done
+          echo "::error title=License server down::$URL unhealthy after 3 attempts"
+          exit 1
+
+      # GitHub disables scheduled workflows in public repos after 60 days with
+      # no repository activity. Re-enabling via the API weekly prevents that
+      # without needing keep-alive commits.
+      - name: Keep schedule alive
+        if: always() && github.event.schedule == '17 6 * * 1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/uptime.yml/enable"
