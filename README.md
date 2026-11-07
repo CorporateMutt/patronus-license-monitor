@@ -1,7 +1,7 @@
 # patronus-license-monitor
 
 Uptime monitor for the Patronus license server
-(`https://patronus-license.fly.dev`, Fly app `patronus-license`).
+(`https://license.patronus-siem.com`, Fly app `patronus-license`).
 
 The [`uptime`](.github/workflows/uptime.yml) workflow checks `/health` every
 5 minutes with TLS verification and fails after 3 consecutive bad attempts.

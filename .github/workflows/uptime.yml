@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      URL: https://patronus-license.fly.dev/health
+      URL: https://license.patronus-siem.com/health
     steps:
       - name: Check /health (TLS verified, expects {"status":"ok"})
         run: |
